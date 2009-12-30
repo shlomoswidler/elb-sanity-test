@@ -181,23 +181,31 @@ public class ELBSanityTest {
 	
 	@Test
 	public void testHealthCheckIsListenerInstancePort() {
-		System.out.println("Test: all ELBs have a HealthCheck on a port that the listener directs traffic to");
+		System.out.println("Test: all ELBs have a HealthCheck of the same procotol on a port that the listener directs traffic to");
 		for (LoadBalancer lb : LoadBalancers) {
 			System.out.println("Load Balancer: " + lb.getName());
 			HealthCheck healthCheck = lb.getHealthCheck();
-			int healthCheckPort = Integer.parseInt(healthCheck.getTarget().split(":")[1]);
+			String[] hCheck = healthCheck.getTarget().split(":");
+			String healthCheckProtocol = hCheck[0];
+			int healthCheckPort = 0;
+			if (healthCheckProtocol.equalsIgnoreCase("TCP")) {
+				healthCheckPort = Integer.parseInt(hCheck[1]);
+			} else {
+				healthCheckPort = Integer.parseInt(hCheck[1].split("/")[0]);
+			}
 			List<Listener> listeners = lb.getListeners();
 			int matchingHealthCheckPort = 0;
 			for (Listener listener : listeners) {
-				if (healthCheckPort == listener.getInstancePort()) {
+				if (healthCheckPort == listener.getInstancePort() && 
+					healthCheckProtocol.equalsIgnoreCase(listener.getProtocol())) {
 					matchingHealthCheckPort = healthCheckPort;
 					break;
 				}
 			}
-			assertTrue("ELB" + lb.getName() + " has a configured HealthCheck on port "
-				+ healthCheckPort, matchingHealthCheckPort != 0);
-			System.out.println("ELB " + lb.getName() + " has a configured " +
-				"HealthCheck on listener port " + matchingHealthCheckPort);
+			assertTrue("ELB " + lb.getName() + " has a " + healthCheckProtocol + " HealthCheck on port "
+				+ healthCheckPort + " corresponding to a listener of the same protocol and port", matchingHealthCheckPort != 0);
+			System.out.println("ELB " + lb.getName() + " has a configured " + healthCheckProtocol +
+				" listener and HealthCheck on port " + matchingHealthCheckPort);
 		}
 	}
 	

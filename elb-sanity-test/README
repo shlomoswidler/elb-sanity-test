@@ -1,7 +1,7 @@
 elb-sanity-test
 
 A test you can run to check your ELB for common gotchas.
-See http://clouddevelopertips.blogspot.com/2009/09/solving-common-elb-problems-with-sanity.html
+See http://shlomoswidler.com/2009/09/solving-common-elb-problems-with-sanity.html
 
 Copyright (c) 2009 Shlomo Swidler
 
@@ -16,3 +16,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
 See the License for the specific language governing permissions and 
 limitations under the License. 
+
+Revision history
+
+Rev: 3
+Date: 30 Dec 2009
+
+Fixed Issue #1 reported by Aryk Grosz: NumberFormatException with HTTP HealthCheck
