@@ -1,4 +1,4 @@
-elb-sanity-test
+# elb-sanity-test
 ===============
 
 Are my AWS Elastic Load Balancers set up properly?
@@ -11,15 +11,14 @@ The "master" branch is currently a work-in-progress, rewriting it in Ruby and
 updating the tests for some of the technology changes that AWS ELB has
 undergone in the past four years.
 
-+ Setup
+# Setup
 
 1. Make sure you have a Ruby 1.9.3 environment.
 2. Get this project from GitHub.
-3. Make the ruby script executable:
-    chmod +x elb-sanity-check.rb
+3. Make the ruby script executable: `chmod +x elb-sanity-check.rb`
 
-+ Usage
-
+# Usage
+```
 $ ./elb-sanity-check.rb
 Commands:
   elb-sanity-test.rb check           # Checks ELBs for sanity
@@ -28,7 +27,8 @@ Commands:
 Options:
   -v, [--verbose], [--no-verbose]  # Show verbose output
   -d, [--debug], [--no-debug]      # Show debug output. Includes verbose output.
-
+```
+```
 $ ./elb-sanity-test.rb help check
 Usage:
   elb-sanity-test.rb check
@@ -46,7 +46,7 @@ Options:
   -d, [--debug], [--no-debug]                          # Show debug output. Includes verbose output.
 
 Checks ELBs for sanity
-
-++ Example
+```
+### Example
 
     $ ./elb-sanity-test.rb --aws-access-key-id=AKIASAMPLE --aws-secret-access-key=SUPERSECRETACCESSKEY check --region=us-east-1
