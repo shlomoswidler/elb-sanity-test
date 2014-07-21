@@ -27,6 +27,8 @@ class ElbSanityTest < Thor
 
   class_option :verbose, :type => :boolean, :aliases => '-v',
     :desc => "Show verbose output", :required => false
+  class_option :debug, :type => :boolean, :aliases => '-d',
+    :desc => "Show debug output. Includes verbose output.", :required => false
     
   method_option :aws_access_key_id, :type => :string, :required => false, 
     :desc => "The AwsAccessKeyId", :default => "AWS_ACCESS_KEY_ID environment variable"
@@ -93,7 +95,11 @@ class ElbSanityTest < Thor
     end
     
     def log(str)
-      say(str) if options[:verbose]
+      say(str) if options[:verbose] || options[:debug]
+    end
+    
+    def debug(str)
+      say(str) if options[:debug]
     end
     
     def error(name, location, message)
@@ -120,7 +126,7 @@ class ElbSanityTest < Thor
             az_to_instance_array_map[instance_to_az_map[instance_id]].push(instance_id)
           end
         end
-        log("AZ map: #{az_to_instance_array_map.reduce(Hash.new(0)) { |h, (k, v)| h[k]=v.size; h }.inspect}")
+        debug("AZ map: #{az_to_instance_array_map.reduce(Hash.new(0)) { |h, (k, v)| h[k]=v.size; h }.inspect}")
         is_all_active_azs_equal=true
         last_size=-1
         az_to_instance_array_map.each do |az, instance_array|
@@ -164,9 +170,9 @@ class ElbSanityTest < Thor
           next
         end
         health_check_desc = ElbHealthCheckTargetDescription.new(health_check_target)
-        log("Health check is protocol #{health_check_desc.protocol} port #{health_check_desc.port}")
+        debug("Health check is protocol #{health_check_desc.protocol} port #{health_check_desc.port}")
         has_matching_listener = lb.listeners.any? do |listener|
-          log("a listener: Front: #{listener.protocol} port #{listener.port}, Back: #{listener.instance_protocol} port #{listener.instance_port}")
+          debug("a listener: Front: #{listener.protocol} port #{listener.port}, Back: #{listener.instance_protocol} port #{listener.instance_port}")
           health_check_desc.protocol==listener.instance_protocol && health_check_desc.port==listener.instance_port
         end
         if !has_matching_listener
@@ -187,9 +193,10 @@ class ElbSanityTest < Thor
         end
         required_instance_ports = lb.listeners.reduce([]) { |arr, listener| arr << listener.instance_port }
         required_instance_ports.uniq!
-        log("Required instance ports: #{required_instance_ports.inspect}")
+        debug("Required instance ports: #{required_instance_ports.inspect}")
         sg_descriptions = {}
         lb.instances.each do |instance|
+          debug("Checking instance #{instance.id}")
           this_instance_remaining_required_ports = [].concat(required_instance_ports)
           instance.security_groups.each do |sg|
             descs = sg_descriptions[sg.id]
@@ -197,18 +204,41 @@ class ElbSanityTest < Thor
               descs = sg.ingress_ip_permissions
               sg_descriptions[sg.id] = descs
             end
+            debug("SG: #{sg.id} Name: #{sg.name}")
             descs.each do |desc|
-              next if desc.protocol != :tcp
-              next if !desc.groups.empty? && !desc.groups.include?("sg-843f59ed") # the global "from ELB" security group
-              next if !desc.ip_ranges.empty? && !desc.ip_ranges.include?("0.0.0.0/0")
-              this_instance_remaining_required_ports.delete_if { |port| desc.port_range.include?(port) }
-            end
+              debug("Permission: #{desc.protocol} CIDRs: #{desc.ip_ranges.join(',')} Port range: #{desc.port_range}")
+              debug("  Groups: #{desc.groups.reduce([]) { |a, g| a << "#{g.id}"; a }.join(',')}") if !desc.groups.empty? 
+              if desc.protocol != :tcp
+                debug("Protocol is not TCP")
+                next
+              end
+              skip_cidr_check=false
+              if !desc.groups.empty?
+                if !desc.groups.any? { |g| g.id=="sg-843f59ed" } # the global "from ELB" security group
+                  debug("Permission is to a non-ELB SG")
+                  next
+                else
+                  debug("Permission is to ELB's SG")
+                  skip_cidr_check=true
+                end
+              end
+              if !skip_cidr_check
+                if !desc.ip_ranges.include?("0.0.0.0/0")
+                  debug("Permission is locked to a non-global IP address range")
+                  next
+                else
+                  debug("Permission is to global IP address range")
+                end
+              end
+              this_instance_remaining_required_ports.delete_if { |port| t=desc.port_range.include?(port); t && debug("Found opening for port #{port}"); t }
+              break if this_instance_remaining_required_ports.empty?
+            end # each permission description
             break if this_instance_remaining_required_ports.empty?
-          end
+          end # each security group
           if !this_instance_remaining_required_ports.empty?
             error(lb.name, lb.availability_zone_names.first, "Instance #{instance.id} does not have these ports open to listen to ELB traffic: #{this_instance_remaining_required_ports.join(",")}")
           end
-        end
+        end # each instance
         log("Done checking ELB #{lb.name}")
       end
     end
