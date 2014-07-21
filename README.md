@@ -16,7 +16,7 @@ supporting the ELB-specific security group.
 # Setup
 
 1. Make sure you have a Ruby 1.9.3 environment.
-2. Get this project from GitHub.
+2. Get this project from GitHub: https://github.com/shlomoswidler/elb-sanity-test
 3. Make the ruby script executable: `chmod +x elb-sanity-check.rb`
 
 # Usage
